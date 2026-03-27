@@ -1,3 +1,4 @@
+console.log('versao 3')
 const express = require('express'); 
 const puppeteer = require('puppeteer-core');
 const https = require('https');
