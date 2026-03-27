@@ -1,4 +1,4 @@
-const express = require('express'); 
+const express = require('express');
 const puppeteer = require('puppeteer-core');
 const https = require('https');
 
@@ -18,18 +18,20 @@ async function getBrowser() {
         '--disable-web-security', '--font-render-hinting=none'
       ]
     });
-    console.log('Browser iniciado.');
+    console.log('Browser iniciado. versao 4');
   }
   return browser;
 }
 
-function cloudinaryUpload(b64, cloudName, uploadPreset) {
+// folder e public_id separados — sem barra no public_id
+function cloudinaryUpload(b64, folder, publicId, cloudName, uploadPreset) {
   return new Promise((resolve, reject) => {
-    // SEM public_id — Cloudinary gera automaticamente, sem risco de barra
     const payload = JSON.stringify({
       file: 'data:image/png;base64,' + b64,
       upload_preset: uploadPreset,
-      resource_type: 'image'
+      resource_type: 'image',
+      folder: folder,
+      public_id: publicId
     });
     const options = {
       hostname: 'api.cloudinary.com',
@@ -59,7 +61,8 @@ app.post('/screenshots-and-upload', async (req, res) => {
   const { renders, cloudinary: cld } = req.body;
   if (!renders || !cld) return res.status(400).json({ error: 'renders e cloudinary obrigatorios.' });
 
-  const { cloud_name, upload_preset } = cld;
+  const { cloud_name, upload_preset, slug } = cld;
+  const ts = Date.now();
   const imageUrls = [];
   let storyUrl = '';
   let page = null;
@@ -82,15 +85,21 @@ app.post('/screenshots-and-upload', async (req, res) => {
       });
       await page.close(); page = null;
 
-      const result = await cloudinaryUpload(shot.toString('base64'), cloud_name, upload_preset);
+      const isStory = r.tipo === 'story';
+      const folder   = 'ufem_instagram';
+      const publicId = `${slug}_${ts}_${isStory ? 'story' : 'slide' + r.num}`;
+
+      const result = await cloudinaryUpload(
+        shot.toString('base64'),
+        folder, publicId,
+        cloud_name, upload_preset
+      );
+
       if (!result.secure_url) throw new Error('Cloudinary erro ' + r.num + ': ' + JSON.stringify(result));
       console.log('OK slide', r.num, '->', result.secure_url);
 
-      if (r.tipo === 'story') {
-        storyUrl = result.secure_url;
-      } else {
-        imageUrls.push(result.secure_url);
-      }
+      if (isStory) { storyUrl = result.secure_url; }
+      else { imageUrls.push(result.secure_url); }
     }
     res.json({ imageUrls, storyUrl });
   } catch (err) {
@@ -100,7 +109,6 @@ app.post('/screenshots-and-upload', async (req, res) => {
   }
 });
 
-// POST /screenshot — rota simples
 app.post('/screenshot', async (req, res) => {
   const { html, width = 1080, height = 1080 } = req.body;
   if (!html) return res.status(400).json({ error: 'html obrigatorio.' });
@@ -132,7 +140,7 @@ app.get('/health', (req, res) => res.json({
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
-  console.log('Porta', PORT);
+  console.log('versao 4 - Porta', PORT);
   getBrowser().catch(console.error);
 });
 
