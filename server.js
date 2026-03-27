@@ -73,7 +73,7 @@ app.post('/screenshots-and-upload', async (req, res) => {
       await page.close(); page = null;
 
       const isStory = r.tipo === 'story';
-      const publicId = `ufem_instagram/${slug}_${ts}_${isStory ? 'story' : 'slide' + r.num}`;
+      const publicId = `${slug}_${ts}_${isStory ? 'story' : 'slide' + r.num}`;
       const result = await cloudinaryUpload(shot.toString('base64'), publicId, cloud_name, upload_preset);
       if (!result.secure_url) throw new Error('Cloudinary erro ' + r.num + ': ' + JSON.stringify(result));
       console.log('OK slide', r.num, result.secure_url);
