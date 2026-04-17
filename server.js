@@ -1,4 +1,5 @@
-const express = require('express'); 
+console.log('versao 4')
+const express = require('express');
 const puppeteer = require('puppeteer-core');
 const https = require('https');
 
@@ -119,6 +120,31 @@ app.post('/screenshot', async (req, res) => {
     res.set('Content-Type', 'image/png');
     res.send(shot);
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (page) await page.close().catch(() => {});
+  }
+});
+
+// POST /html-to-pdf — converte HTML em PDF e retorna em base64
+app.post('/html-to-pdf', async (req, res) => {
+  const { html, format = 'A4', margin } = req.body;
+  if (!html) return res.status(400).json({ error: 'html obrigatorio.' });
+  let page = null;
+  try {
+    const b = await getBrowser();
+    page = await b.newPage();
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 60000 });
+    await page.evaluateHandle('document.fonts.ready');
+    await new Promise(r => setTimeout(r, 500));
+    const pdfBuffer = await page.pdf({
+      format: format,
+      margin: margin || { top: '2cm', right: '2cm', bottom: '2cm', left: '2cm' },
+      printBackground: true
+    });
+    res.json({ pdf_base64: pdfBuffer.toString('base64') });
+  } catch (err) {
+    console.error('html-to-pdf:', err.message);
     res.status(500).json({ error: err.message });
   } finally {
     if (page) await page.close().catch(() => {});
